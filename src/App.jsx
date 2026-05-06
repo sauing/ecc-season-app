@@ -4,6 +4,7 @@ import MatchAvailability from "./pages/MatchAvailability";
 import SquadBuilder from "./pages/SquadBuilder";
 import SeasonLogin from "./pages/SeasonLogin";
 import MultiMatchAvailability from "./pages/MultiMatchAvailability";
+import FantasyPoints from "./pages/FantasyPoints";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/match/:matchId" element={<MatchAvailability />} />
         <Route path="/match/:matchId/squad" element={<SquadBuilder />} />
         <Route path="/availability/multiple" element={<MultiMatchAvailability />} />
+        <Route path="/fantasy-points" element={<FantasyPoints />} />
       </Routes>
     </BrowserRouter>
   );

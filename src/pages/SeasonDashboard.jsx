@@ -105,7 +105,7 @@ export default function SeasonDashboard() {
               <img src={logo} alt="ECC Logo" style={styles.logo} />
             </div>
 
-            <div>
+            <div style={styles.headerText}>
               <p style={styles.kicker}>Eindhoven Cricket Club</p>
               <h1 style={styles.title}>ECC Season 2026</h1>
               <p style={styles.subtitle}>
@@ -123,12 +123,19 @@ export default function SeasonDashboard() {
               style={styles.secondaryButton}
               onClick={() => navigate("/availability/multiple")}
             >
-              📝 Update Multiple Matches
+              📝 Update Multiple
+            </button>
+
+            <button
+              style={styles.secondaryButton}
+              onClick={() => navigate("/fantasy-points")}
+            >
+              🏆 Fantasy Points
             </button>
 
             {!session ? (
               <button style={styles.darkButton} onClick={() => navigate("/login")}>
-                🔐 Captain / Admin Login
+                🔐 Login
               </button>
             ) : (
               <button style={styles.logoutButton} onClick={logout}>
@@ -139,7 +146,7 @@ export default function SeasonDashboard() {
         </header>
 
         <section style={styles.noticeCard}>
-          <div>
+          <div style={styles.noticeTextBox}>
             <h2 style={styles.noticeTitle}>{visibleMatches.length} matches visible</h2>
             <p style={styles.noticeText}>
               Past matches are greyed out and availability is closed.
@@ -166,14 +173,12 @@ export default function SeasonDashboard() {
                 ? session.role === "super_admin"
                   ? "Super Admin"
                   : `${session.team} Admin`
-                : "Public View"}
+                : "Public"}
             </span>
           </div>
         </section>
 
-        <div style={styles.sectionTitleRow}>
-          <h2 style={styles.sectionTitle}>Upcoming Matches</h2>
-        </div>
+        <h2 style={styles.sectionTitle}>Upcoming Matches</h2>
 
         {visibleMatches.length === 0 ? (
           <div style={styles.emptyCard}>No matches found for this filter.</div>
@@ -202,15 +207,17 @@ export default function SeasonDashboard() {
                   </h3>
 
                   <div style={styles.infoList}>
-                    <p>📅 {match.match_date}</p>
-                    <p>⏰ {match.start_time || "TBD"}</p>
-                    <p>📍 {match.home_away?.toUpperCase()} • {match.venue}</p>
-                    <p>🏏 {match.division}</p>
+                    <p style={styles.infoLine}>📅 {match.match_date}</p>
+                    <p style={styles.infoLine}>⏰ {match.start_time || "TBD"}</p>
+                    <p style={styles.infoLine}>
+                      📍 {match.home_away?.toUpperCase()} • {match.venue}
+                    </p>
+                    <p style={styles.infoLine}>🏏 {match.division}</p>
                   </div>
 
                   <div style={styles.statsGrid}>
                     <MiniStat label="Total" value={match.total_players} />
-                    <MiniStat label="Available" value={match.available_count} tone="green" />
+                    <MiniStat label="Avail" value={match.available_count} tone="green" />
                     <MiniStat label="Maybe" value={match.maybe_count} tone="orange" />
                     <MiniStat label="Out" value={match.unavailable_count} tone="red" />
                   </div>
@@ -227,7 +234,7 @@ export default function SeasonDashboard() {
                       }}
                     >
                       {past
-                        ? "Match Closed"
+                        ? "Closed"
                         : session
                         ? "View Availability"
                         : "Update Availability"}
@@ -244,7 +251,7 @@ export default function SeasonDashboard() {
                           if (!past) navigate(`/match/${match.match_id}/squad`);
                         }}
                       >
-                        {past ? "Squad Closed" : "Build Squad"}
+                        {past ? "Closed" : "Build Squad"}
                       </button>
                     )}
                   </div>
@@ -279,19 +286,25 @@ const styles = {
   page: {
     minHeight: "100vh",
     background: "linear-gradient(135deg, #eef2ff 0%, #f8fafc 45%, #ecfdf5 100%)",
-    padding: "24px",
+    padding: "10px",
+    boxSizing: "border-box",
+    overflowX: "hidden",
     fontFamily:
       "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
+
   container: {
+    width: "100%",
     maxWidth: "1180px",
     margin: "0 auto",
+    boxSizing: "border-box",
   },
+
   loadingCard: {
     maxWidth: "420px",
     margin: "100px auto",
     background: "white",
-    padding: "24px",
+    padding: "20px",
     borderRadius: "18px",
     boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)",
     textAlign: "center",
@@ -302,259 +315,332 @@ const styles = {
     background:
       "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))",
     border: "1px solid rgba(226,232,240,0.95)",
-    borderRadius: "28px",
-    padding: "24px",
-    marginBottom: "24px",
-    boxShadow: "0 18px 45px rgba(15,23,42,0.12)",
+    borderRadius: "20px",
+    padding: "14px",
+    marginBottom: "14px",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.10)",
     display: "flex",
     justifyContent: "space-between",
-    gap: "20px",
+    gap: "12px",
     flexWrap: "wrap",
     alignItems: "center",
   },
+
   headerLeft: {
     display: "flex",
     alignItems: "center",
-    gap: "18px",
+    gap: "10px",
+    minWidth: "0",
+    flex: "1 1 250px",
   },
+
+  headerText: {
+    minWidth: 0,
+  },
+
   logoWrap: {
-    width: "72px",
-    height: "72px",
-    borderRadius: "22px",
+    width: "52px",
+    height: "52px",
+    borderRadius: "16px",
     background: "linear-gradient(135deg, #fff7ed, #fde68a, #dcfce7)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0 12px 28px rgba(15,23,42,0.16)",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.14)",
     border: "1px solid rgba(255,255,255,0.9)",
+    flexShrink: 0,
   },
+
   logo: {
-    width: "58px",
-    height: "58px",
+    width: "42px",
+    height: "42px",
     objectFit: "contain",
   },
+
   kicker: {
     margin: 0,
     color: "#2563eb",
     fontWeight: "900",
-    fontSize: "13px",
-    letterSpacing: "0.09em",
+    fontSize: "11px",
+    letterSpacing: "0.06em",
     textTransform: "uppercase",
   },
+
   title: {
-    margin: "6px 0",
-    fontSize: "38px",
-    lineHeight: "1.05",
+    margin: "3px 0",
+    fontSize: "clamp(22px, 6vw, 34px)",
+    lineHeight: "1.08",
     color: "#0f172a",
     fontWeight: "900",
+    wordBreak: "break-word",
   },
+
   subtitle: {
     margin: 0,
     color: "#64748b",
-    fontSize: "15px",
+    fontSize: "12px",
     fontWeight: "600",
+    lineHeight: "1.35",
   },
+
   headerActions: {
     display: "flex",
-    gap: "12px",
+    gap: "8px",
     alignItems: "center",
     flexWrap: "wrap",
+    flex: "1 1 220px",
+    justifyContent: "flex-end",
   },
+
   secondaryButton: {
+    flex: "1 1 140px",
     background: "#eef2ff",
     color: "#3730a3",
     border: "1px solid #c7d2fe",
-    padding: "13px 16px",
-    borderRadius: "14px",
+    padding: "10px 10px",
+    borderRadius: "12px",
     cursor: "pointer",
     fontWeight: "900",
-    boxShadow: "0 8px 18px rgba(79,70,229,0.12)",
+    fontSize: "12px",
+    boxShadow: "0 6px 14px rgba(79,70,229,0.10)",
+    whiteSpace: "nowrap",
   },
+
   darkButton: {
+    flex: "1 1 90px",
     background: "#0f172a",
     color: "white",
     border: "none",
-    padding: "13px 16px",
-    borderRadius: "14px",
+    padding: "10px 10px",
+    borderRadius: "12px",
     cursor: "pointer",
     fontWeight: "900",
-    boxShadow: "0 10px 22px rgba(15,23,42,0.22)",
+    fontSize: "12px",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.20)",
+    whiteSpace: "nowrap",
   },
+
   logoutButton: {
+    flex: "1 1 90px",
     background: "#dc2626",
     color: "white",
     border: "none",
-    padding: "13px 16px",
-    borderRadius: "14px",
+    padding: "10px 10px",
+    borderRadius: "12px",
     cursor: "pointer",
     fontWeight: "900",
-    boxShadow: "0 10px 22px rgba(220,38,38,0.22)",
+    fontSize: "12px",
+    boxShadow: "0 8px 18px rgba(220,38,38,0.20)",
+    whiteSpace: "nowrap",
   },
 
   noticeCard: {
     background: "white",
     border: "1px solid #e2e8f0",
-    borderRadius: "20px",
-    padding: "18px 20px",
-    marginBottom: "26px",
-    boxShadow: "0 10px 24px rgba(15,23,42,0.08)",
+    borderRadius: "16px",
+    padding: "12px",
+    marginBottom: "16px",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.07)",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: "14px",
+    gap: "10px",
     flexWrap: "wrap",
   },
+
+  noticeTextBox: {
+    minWidth: 0,
+    flex: "1 1 200px",
+  },
+
   noticeTitle: {
     margin: 0,
-    fontSize: "22px",
+    fontSize: "17px",
     color: "#0f172a",
   },
+
   noticeText: {
-    margin: "6px 0 0",
+    margin: "4px 0 0",
     color: "#64748b",
-    fontSize: "14px",
+    fontSize: "12px",
+    lineHeight: "1.35",
   },
+
   filterBox: {
     display: "flex",
-    gap: "10px",
+    gap: "8px",
     alignItems: "center",
     flexWrap: "wrap",
+    flex: "1 1 190px",
+    justifyContent: "flex-end",
   },
+
   teamSelect: {
-    padding: "10px 12px",
-    borderRadius: "12px",
+    flex: "1 1 120px",
+    padding: "9px 10px",
+    borderRadius: "11px",
     border: "1px solid #cbd5e1",
     background: "white",
     fontWeight: "800",
     color: "#0f172a",
+    fontSize: "12px",
+    minWidth: "120px",
   },
+
   noticeBadge: {
     background: "#ecfdf5",
     color: "#047857",
-    padding: "8px 13px",
+    padding: "8px 10px",
     borderRadius: "999px",
     fontWeight: "900",
-    fontSize: "13px",
+    fontSize: "11px",
+    whiteSpace: "nowrap",
   },
-  sectionTitleRow: {
-    marginBottom: "14px",
-  },
+
   sectionTitle: {
-    margin: 0,
-    fontSize: "22px",
+    margin: "0 0 10px",
+    fontSize: "19px",
     color: "#0f172a",
   },
+
   matchGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-    gap: "18px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(235px, 1fr))",
+    gap: "10px",
   },
+
   matchCard: {
     background: "white",
     border: "1px solid #e2e8f0",
-    borderRadius: "22px",
-    padding: "20px",
-    boxShadow: "0 12px 28px rgba(15,23,42,0.10)",
+    borderRadius: "16px",
+    padding: "12px",
+    boxShadow: "0 6px 14px rgba(15,23,42,0.08)",
+    minWidth: 0,
   },
+
   pastMatchCard: {
     opacity: 0.55,
     background: "#f1f5f9",
   },
+
   cardTop: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "10px",
-    marginBottom: "14px",
+    gap: "8px",
+    marginBottom: "8px",
   },
+
   teamBadge: {
     background: "#ecfdf5",
     color: "#047857",
-    padding: "7px 11px",
+    padding: "5px 8px",
     borderRadius: "999px",
     fontWeight: "900",
-    fontSize: "13px",
+    fontSize: "11px",
   },
+
   dateBadge: {
     background: "#f1f5f9",
     color: "#334155",
-    padding: "7px 11px",
+    padding: "5px 8px",
     borderRadius: "999px",
     fontWeight: "800",
-    fontSize: "13px",
+    fontSize: "11px",
   },
+
   closedBadge: {
     background: "#e5e7eb",
     color: "#6b7280",
-    padding: "7px 11px",
+    padding: "5px 8px",
     borderRadius: "999px",
     fontWeight: "900",
-    fontSize: "13px",
+    fontSize: "11px",
   },
+
   matchTitle: {
-    margin: "0 0 12px",
+    margin: "0 0 8px",
     color: "#0f172a",
-    fontSize: "21px",
+    fontSize: "16px",
+    lineHeight: "1.25",
   },
+
   infoList: {
     color: "#475569",
-    fontSize: "14px",
-    lineHeight: "1.4",
+    fontSize: "11px",
+    lineHeight: "1.25",
   },
+
+  infoLine: {
+    margin: "3px 0",
+  },
+
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: "8px",
-    marginTop: "16px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(54px, 1fr))",
+    gap: "5px",
+    marginTop: "10px",
   },
+
   miniStat: {
     background: "#f8fafc",
     border: "1px solid #e2e8f0",
-    borderRadius: "14px",
-    padding: "10px",
+    borderRadius: "10px",
+    padding: "6px 3px",
     textAlign: "center",
   },
+
   miniLabel: {
     margin: 0,
     color: "#64748b",
-    fontSize: "12px",
-    fontWeight: "700",
+    fontSize: "9px",
+    fontWeight: "800",
   },
+
   miniValue: {
-    margin: "4px 0 0",
-    fontSize: "20px",
+    margin: "2px 0 0",
+    fontSize: "15px",
   },
+
   actions: {
     display: "flex",
-    gap: "10px",
-    marginTop: "18px",
+    gap: "7px",
+    marginTop: "12px",
     flexWrap: "wrap",
   },
+
   primaryButton: {
+    flex: "1 1 120px",
     background: "#2563eb",
     color: "white",
     border: "none",
-    padding: "11px 14px",
-    borderRadius: "12px",
+    padding: "9px 10px",
+    borderRadius: "10px",
     cursor: "pointer",
     fontWeight: "800",
+    fontSize: "12px",
   },
+
   successButton: {
+    flex: "1 1 110px",
     background: "#16a34a",
     color: "white",
     border: "none",
-    padding: "11px 14px",
-    borderRadius: "12px",
+    padding: "9px 10px",
+    borderRadius: "10px",
     cursor: "pointer",
     fontWeight: "800",
+    fontSize: "12px",
   },
+
   disabledButton: {
     background: "#94a3b8",
     cursor: "not-allowed",
   },
+
   emptyCard: {
     background: "white",
-    borderRadius: "18px",
-    padding: "28px",
+    borderRadius: "16px",
+    padding: "22px",
     textAlign: "center",
     color: "#64748b",
     fontWeight: "700",
