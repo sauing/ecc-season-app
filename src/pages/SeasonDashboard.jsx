@@ -3,6 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import logo from "../assets/ecc-logo.png";
 
+function formatDateWithDay(matchDate) {
+  if (!matchDate) return "TBD";
+
+  const date = new Date(`${matchDate}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return matchDate;
+  }
+
+  return date.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function isPastMatch(matchDate) {
   if (!matchDate) return false;
 
@@ -205,7 +222,7 @@ export default function SeasonDashboard() {
                   <div style={styles.cardTop}>
                     <span style={styles.teamBadge}>{match.team}</span>
                     <span style={past ? styles.closedBadge : styles.dateBadge}>
-                      {past ? "Closed" : match.match_date}
+                      {past ? "Closed" : formatDateWithDay(match.match_date)}
                     </span>
                   </div>
 
@@ -214,7 +231,7 @@ export default function SeasonDashboard() {
                   </h3>
 
                   <div style={styles.infoList}>
-                    <p style={styles.infoLine}>📅 {match.match_date}</p>
+                    <p style={styles.infoLine}>📅 {formatDateWithDay(match.match_date)}</p>
                     <p style={styles.infoLine}>⏰ {match.start_time || "TBD"}</p>
                     <p style={styles.infoLine}>
                       📍 {match.home_away?.toUpperCase()} • {match.venue}
