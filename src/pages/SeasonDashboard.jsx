@@ -123,7 +123,7 @@ export default function SeasonDashboard() {
               style={styles.secondaryButton}
               onClick={() => navigate("/availability/multiple")}
             >
-              📝 Update Availbility in bulk
+              📝 Update Multiple
             </button>
 
             <button
@@ -131,6 +131,13 @@ export default function SeasonDashboard() {
               onClick={() => navigate("/fantasy-points")}
             >
               🏆 Fantasy Points
+            </button>
+
+            <button
+              style={styles.secondaryButton}
+              onClick={() => navigate("/kncb-stats")}
+            >
+              📊 KNCB Stats
             </button>
 
             {!session ? (
