@@ -5,6 +5,7 @@ import SquadBuilder from "./pages/SquadBuilder";
 import SeasonLogin from "./pages/SeasonLogin";
 import MultiMatchAvailability from "./pages/MultiMatchAvailability";
 import FantasyPoints from "./pages/FantasyPoints";
+import KncbStats from "./pages/KncbStats";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/match/:matchId/squad" element={<SquadBuilder />} />
         <Route path="/availability/multiple" element={<MultiMatchAvailability />} />
         <Route path="/fantasy-points" element={<FantasyPoints />} />
+        <Route path="/kncb-stats" element={<KncbStats />} />
       </Routes>
     </BrowserRouter>
   );

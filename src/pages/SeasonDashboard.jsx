@@ -133,6 +133,13 @@ export default function SeasonDashboard() {
               🏆 Fantasy Points
             </button>
 
+            <button
+              style={styles.secondaryButton}
+              onClick={() => navigate("/kncb-stats")}
+            >
+              📊 KNCB Stats
+            </button>
+
             {!session ? (
               <button style={styles.darkButton} onClick={() => navigate("/login")}>
                 🔐 Login
