@@ -319,13 +319,17 @@ const styles = {
   page: {
     minHeight: "100vh",
     background: "linear-gradient(135deg, #eef2ff 0%, #f8fafc 50%, #ecfdf5 100%)",
-    padding: "24px",
+    padding: "12px",
+    boxSizing: "border-box",
+    overflowX: "hidden",
     fontFamily:
       "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   container: {
+    width: "100%",
     maxWidth: "1100px",
     margin: "0 auto",
+    boxSizing: "border-box",
   },
   loadingCard: {
     maxWidth: "420px",
@@ -359,6 +363,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "14px",
+    flexWrap: "wrap",
   },
   logoWrap: {
     width: "64px",
@@ -385,7 +390,8 @@ const styles = {
   },
   title: {
     margin: "6px 0",
-    fontSize: "34px",
+    fontSize: "clamp(26px, 8vw, 34px)",
+    lineHeight: "1.12",
     color: "#0f172a",
   },
   subtitle: {
@@ -413,16 +419,23 @@ const styles = {
   },
   playerForm: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "12px",
+    width: "100%",
   },
   searchInput: {
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
     padding: "12px",
     borderRadius: "12px",
     border: "1px solid #cbd5e1",
     fontSize: "15px",
   },
   playerSelect: {
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
     padding: "12px",
     borderRadius: "12px",
     border: "1px solid #cbd5e1",
@@ -477,12 +490,13 @@ const styles = {
     background: "white",
     border: "1px solid #e2e8f0",
     borderRadius: "18px",
-    padding: "16px",
+    padding: "14px",
     boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
     display: "grid",
-    gridTemplateColumns: "1fr 190px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "12px",
     alignItems: "center",
+    boxSizing: "border-box",
   },
   matchTitle: {
     fontSize: "17px",
@@ -495,6 +509,9 @@ const styles = {
     fontSize: "14px",
   },
   statusSelect: {
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
     padding: "11px 12px",
     borderRadius: "12px",
     border: "1px solid #cbd5e1",
@@ -525,5 +542,6 @@ const styles = {
     marginTop: "18px",
     display: "flex",
     justifyContent: "flex-end",
+    flexWrap: "wrap",
   },
 };

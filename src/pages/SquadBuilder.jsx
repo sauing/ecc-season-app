@@ -337,7 +337,16 @@ Please be on time.`;
   }
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1100px", margin: "auto" }}>
+    <div
+      style={{
+        padding: "12px",
+        width: "100%",
+        maxWidth: "1100px",
+        margin: "auto",
+        boxSizing: "border-box",
+        overflowX: "hidden",
+      }}
+    >
       <button onClick={() => navigate("/")} style={{ marginBottom: "16px" }}>
         ← Back
       </button>
@@ -361,7 +370,7 @@ Please be on time.`;
           {match.home_away?.toUpperCase()} | {match.venue}
         </p>
 
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <div
             style={{
               fontWeight: "bold",
@@ -375,8 +384,8 @@ Please be on time.`;
             Selected: {selectedPlayers.length}/{SQUAD_LIMIT}
           </div>
 
-          <button onClick={saveSquad}>💾 Save Squad + Duties</button>
-          <button onClick={copyWhatsAppMessage}>📋 Copy WhatsApp Squad</button>
+          <button onClick={saveSquad} style={mobileButtonStyle}>💾 Save Squad + Duties</button>
+          <button onClick={copyWhatsAppMessage} style={mobileButtonStyle}>📋 Copy WhatsApp Squad</button>
         </div>
       </div>
 
@@ -419,7 +428,7 @@ Please be on time.`;
                 key={dutyName}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "220px 1fr",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                   gap: "12px",
                   alignItems: "center",
                 }}
@@ -430,6 +439,9 @@ Please be on time.`;
                   value={duties[dutyName] || ""}
                   onChange={(e) => handleDutyChange(dutyName, e.target.value)}
                   style={{
+                    width: "100%",
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
                     padding: "9px 10px",
                     borderRadius: "8px",
                     border: "1px solid #ccc",
@@ -448,8 +460,16 @@ Please be on time.`;
         )}
       </div>
 
-      <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "10px",
+          marginBottom: "16px",
+        }}
+      >
         <select
+          style={filterSelectStyle}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -459,7 +479,11 @@ Please be on time.`;
           <option value="unavailable">Unavailable only</option>
         </select>
 
-        <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
+        <select
+          value={teamFilter}
+          onChange={(e) => setTeamFilter(e.target.value)}
+          style={filterSelectStyle}
+        >
           {teams.map((team) => (
             <option key={team} value={team}>
               {team === "all" ? "All Teams" : team}
@@ -478,7 +502,7 @@ Please be on time.`;
               key={p.player_id}
               style={{
                 display: "grid",
-                gridTemplateColumns: "40px 1fr 100px 150px",
+                gridTemplateColumns: "32px minmax(0, 1fr)",
                 alignItems: "center",
                 gap: "10px",
                 border: selected ? "2px solid #16a34a" : "1px solid #ddd",
@@ -516,7 +540,7 @@ Please be on time.`;
                 )}
               </div>
 
-              <div style={{ fontWeight: "bold", textAlign: "center" }}>
+              <div style={{ fontWeight: "bold", fontSize: "13px", color: "#334155" }}>
                 {p.player_team}
               </div>
 
@@ -526,6 +550,7 @@ Please be on time.`;
                   padding: "5px 8px",
                   borderRadius: "20px",
                   fontWeight: "bold",
+                  fontSize: "12px",
                   background:
                     p.status === "available"
                       ? "#bbf7d0"
@@ -543,3 +568,23 @@ Please be on time.`;
     </div>
   );
 }
+
+const mobileButtonStyle = {
+  padding: "10px 12px",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  fontWeight: "800",
+  cursor: "pointer",
+};
+
+const filterSelectStyle = {
+  width: "100%",
+  maxWidth: "100%",
+  boxSizing: "border-box",
+  padding: "10px 12px",
+  borderRadius: "10px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  fontWeight: "700",
+};
