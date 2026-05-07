@@ -15,6 +15,7 @@ export default function SquadBuilder() {
   const [teamFilter, setTeamFilter] = useState("all");
   const [duties, setDuties] = useState({});
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -119,7 +120,7 @@ export default function SquadBuilder() {
 
     const dutyMap = {};
     (data || []).forEach((duty) => {
-      dutyMap[duty.duty_name] = duty.assigned_player_id;
+      dutyMap[duty.duty_type] = duty.player_id;
     });
 
     setDuties(dutyMap);
@@ -166,6 +167,11 @@ export default function SquadBuilder() {
   }
 
   async function saveSquad() {
+    if (saving) return;
+
+    setSaving(true);
+
+    try {
     const pickedConflict = players.find(
       (p) => selectedPlayers.includes(p.player_id) && p.picked_for_team
     );
@@ -255,10 +261,10 @@ export default function SquadBuilder() {
 
     const dutyRows = Object.entries(duties)
       .filter(([_, playerId]) => playerId)
-      .map(([dutyName, playerId]) => ({
+      .map(([dutyType, playerId]) => ({
         match_id: matchId,
-        duty_name: dutyName,
-        assigned_player_id: playerId,
+        player_id: playerId,
+        duty_type: dutyType,
       }));
 
     if (dutyRows.length > 0) {
@@ -268,13 +274,15 @@ export default function SquadBuilder() {
 
       if (dutyInsertError) {
         console.error(dutyInsertError);
-        alert("Squad saved, but duties could not be saved");
+        alert(`Squad saved, but duties could not be saved: ${dutyInsertError.message}`);
         return;
       }
     }
 
     alert("Squad and duties saved successfully!");
-    fetchData();
+    } finally {
+      setSaving(false);
+    }
   }
 
   function getPlayerName(playerId) {
@@ -337,16 +345,7 @@ Please be on time.`;
   }
 
   return (
-    <div
-      style={{
-        padding: "12px",
-        width: "100%",
-        maxWidth: "1100px",
-        margin: "auto",
-        boxSizing: "border-box",
-        overflowX: "hidden",
-      }}
-    >
+    <div style={{ padding: "20px", maxWidth: "1100px", margin: "auto" }}>
       <button onClick={() => navigate("/")} style={{ marginBottom: "16px" }}>
         ← Back
       </button>
@@ -370,7 +369,7 @@ Please be on time.`;
           {match.home_away?.toUpperCase()} | {match.venue}
         </p>
 
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <div
             style={{
               fontWeight: "bold",
@@ -384,8 +383,8 @@ Please be on time.`;
             Selected: {selectedPlayers.length}/{SQUAD_LIMIT}
           </div>
 
-          <button onClick={saveSquad} style={mobileButtonStyle}>💾 Save Squad + Duties</button>
-          <button onClick={copyWhatsAppMessage} style={mobileButtonStyle}>📋 Copy WhatsApp Squad</button>
+          <button onClick={saveSquad}>💾 Save Squad + Duties</button>
+          <button onClick={copyWhatsAppMessage}>📋 Copy WhatsApp Squad</button>
         </div>
       </div>
 
@@ -428,7 +427,7 @@ Please be on time.`;
                 key={dutyName}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gridTemplateColumns: "220px 1fr",
                   gap: "12px",
                   alignItems: "center",
                 }}
@@ -439,9 +438,6 @@ Please be on time.`;
                   value={duties[dutyName] || ""}
                   onChange={(e) => handleDutyChange(dutyName, e.target.value)}
                   style={{
-                    width: "100%",
-                    maxWidth: "100%",
-                    boxSizing: "border-box",
                     padding: "9px 10px",
                     borderRadius: "8px",
                     border: "1px solid #ccc",
@@ -460,16 +456,8 @@ Please be on time.`;
         )}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "10px",
-          marginBottom: "16px",
-        }}
-      >
+      <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
         <select
-          style={filterSelectStyle}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -479,11 +467,7 @@ Please be on time.`;
           <option value="unavailable">Unavailable only</option>
         </select>
 
-        <select
-          value={teamFilter}
-          onChange={(e) => setTeamFilter(e.target.value)}
-          style={filterSelectStyle}
-        >
+        <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
           {teams.map((team) => (
             <option key={team} value={team}>
               {team === "all" ? "All Teams" : team}
@@ -502,7 +486,7 @@ Please be on time.`;
               key={p.player_id}
               style={{
                 display: "grid",
-                gridTemplateColumns: "32px minmax(0, 1fr)",
+                gridTemplateColumns: "40px 1fr 100px 150px",
                 alignItems: "center",
                 gap: "10px",
                 border: selected ? "2px solid #16a34a" : "1px solid #ddd",
@@ -540,7 +524,7 @@ Please be on time.`;
                 )}
               </div>
 
-              <div style={{ fontWeight: "bold", fontSize: "13px", color: "#334155" }}>
+              <div style={{ fontWeight: "bold", textAlign: "center" }}>
                 {p.player_team}
               </div>
 
@@ -550,7 +534,6 @@ Please be on time.`;
                   padding: "5px 8px",
                   borderRadius: "20px",
                   fontWeight: "bold",
-                  fontSize: "12px",
                   background:
                     p.status === "available"
                       ? "#bbf7d0"
@@ -568,23 +551,3 @@ Please be on time.`;
     </div>
   );
 }
-
-const mobileButtonStyle = {
-  padding: "10px 12px",
-  borderRadius: "10px",
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  fontWeight: "800",
-  cursor: "pointer",
-};
-
-const filterSelectStyle = {
-  width: "100%",
-  maxWidth: "100%",
-  boxSizing: "border-box",
-  padding: "10px 12px",
-  borderRadius: "10px",
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  fontWeight: "700",
-};
