@@ -1,10 +1,54 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useClub } from "../hooks/useClub";
 import { supabase } from "../supabaseClient";
+
+const HTCECA_VOLUNTEERS = [
+  "Sridhar",
+  "Siddhart",
+  "Karthika",
+  "Vidyanath",
+  "Arjun",
+  "Dhyan",
+  "Shivansh",
+  "Aayush",
+  "Shameek",
+  "Ilankathir",
+  "Krishiv",
+  "Ranjith",
+  "Vivaan",
+  "Sai Rakesh",
+  "Krithick",
+  "Ritwik",
+  "Pranav",
+  "Sumedh",
+  "Suvan",
+  "Partha",
+  "Sankeerth",
+  "Atharva",
+  "Vinuthan",
+  "Jaisoorya",
+  "Shreyas",
+  "Rishi",
+  "Pruthvi",
+  "Gracen",
+  "Karson",
+  "Shrujan",
+  "Aryan",
+  "Arman",
+  "Vishnu",
+  "Suchith",
+  "Saiyam",
+  "Siddhant",
+  "Abyann",
+  "Neel",
+];
+
 
 export default function SquadBuilder() {
   const { matchId } = useParams();
   const navigate = useNavigate();
+  const { clubSlug, club, buildClubPath, dataSource, isLegacyEcc } = useClub();
 
   const SQUAD_LIMIT = 12;
 
@@ -22,21 +66,36 @@ export default function SquadBuilder() {
   }, [matchId]);
 
   const dutyList = useMemo(() => {
+    if (!isLegacyEcc) {
+      return [
+        "Aligning with Opponents",
+        "Umpiring",
+        "Scoring",
+        "Arranging Food for Opponent Team",
+        "Ground Setup & Cleaning Incharge",
+      ];
+    }
+
     const isHome = match?.home_away?.toLowerCase() === "home";
 
     return isHome
       ? ["Lunch", "Drinks", "Ground Setup", "Key Incharge", "Frogbox Setup"]
       : ["Kit Incharge", "Travel and Expense Planner"];
-  }, [match]);
+  }, [match, isLegacyEcc]);
 
   async function fetchData() {
     setLoading(true);
 
-    const { data: matchData, error: matchError } = await supabase
-      .from("ecc_season_match_dashboard")
+    let matchQuery = supabase
+      .from(dataSource.dashboardView)
       .select("*")
-      .eq("match_id", matchId)
-      .single();
+      .eq("match_id", matchId);
+
+    if (!isLegacyEcc) {
+      matchQuery = matchQuery.eq("club_slug", clubSlug);
+    }
+
+    const { data: matchData, error: matchError } = await matchQuery.single();
 
     if (matchError) {
       console.error(matchError);
@@ -48,7 +107,7 @@ export default function SquadBuilder() {
     setMatch(matchData);
 
     const { data: availabilityData, error: availabilityError } = await supabase
-      .from("ecc_season_match_availability_view")
+      .from(dataSource.availabilityView)
       .select("*")
       .eq("match_id", matchId)
       .order("player_team", { ascending: true })
@@ -61,10 +120,16 @@ export default function SquadBuilder() {
       return;
     }
 
-    const { data: pickedData } = await supabase
-      .from("ecc_season_picked_players_view")
+    let pickedQuery = supabase
+      .from(dataSource.pickedPlayersView)
       .select("*")
       .eq("match_date", matchData.match_date);
+
+    if (!isLegacyEcc) {
+      pickedQuery = pickedQuery.eq("club_slug", clubSlug);
+    }
+
+    const { data: pickedData } = await pickedQuery;
 
     const pickedMap = {};
     (pickedData || []).forEach((p) => {
@@ -91,7 +156,7 @@ export default function SquadBuilder() {
 
   async function loadExistingSquad() {
     const { data: squad } = await supabase
-      .from("ecc_season_match_squads")
+      .from(dataSource.squadsTable)
       .select("id")
       .eq("match_id", matchId)
       .maybeSingle();
@@ -99,7 +164,7 @@ export default function SquadBuilder() {
     if (!squad) return;
 
     const { data: squadPlayers } = await supabase
-      .from("ecc_season_match_squad_players")
+      .from(dataSource.squadPlayersTable)
       .select("player_id")
       .eq("squad_id", squad.id)
       .order("batting_position", { ascending: true });
@@ -109,7 +174,7 @@ export default function SquadBuilder() {
 
   async function loadExistingDuties() {
     const { data, error } = await supabase
-      .from("ecc_season_match_duties")
+      .from(dataSource.dutiesTable)
       .select("*")
       .eq("match_id", matchId);
 
@@ -120,7 +185,7 @@ export default function SquadBuilder() {
 
     const dutyMap = {};
     (data || []).forEach((duty) => {
-      dutyMap[duty.duty_type] = duty.player_id;
+      dutyMap[duty.duty_type] = isLegacyEcc ? duty.player_id : duty.duty_note;
     });
 
     setDuties(dutyMap);
@@ -141,11 +206,13 @@ export default function SquadBuilder() {
 
       const updatedDuties = { ...duties };
 
-      Object.keys(updatedDuties).forEach((dutyName) => {
-        if (updatedDuties[dutyName] === player.player_id) {
-          updatedDuties[dutyName] = "";
-        }
-      });
+      if (isLegacyEcc) {
+        Object.keys(updatedDuties).forEach((dutyName) => {
+          if (updatedDuties[dutyName] === player.player_id) {
+            updatedDuties[dutyName] = "";
+          }
+        });
+      }
 
       setDuties(updatedDuties);
       return;
@@ -184,8 +251,8 @@ export default function SquadBuilder() {
     }
 
     const { data: rawMatch } = await supabase
-      .from("ecc_season_matches")
-      .select("team_id")
+      .from(dataSource.matchesTable)
+      .select("team_id, club_id")
       .eq("id", matchId)
       .single();
 
@@ -194,10 +261,17 @@ export default function SquadBuilder() {
       return;
     }
 
+    const resolvedClubId = rawMatch.club_id || match?.club_id;
+
+    if (!isLegacyEcc && !resolvedClubId) {
+      alert("Club not found for this match");
+      return;
+    }
+
     let squadId;
 
     const { data: existingSquad } = await supabase
-      .from("ecc_season_match_squads")
+      .from(dataSource.squadsTable)
       .select("id")
       .eq("match_id", matchId)
       .maybeSingle();
@@ -206,11 +280,12 @@ export default function SquadBuilder() {
       squadId = existingSquad.id;
     } else {
       const { data: newSquad, error } = await supabase
-        .from("ecc_season_match_squads")
+        .from(dataSource.squadsTable)
         .insert({
           match_id: matchId,
           team_id: rawMatch.team_id,
           status: "draft",
+          ...(!isLegacyEcc ? { club_id: resolvedClubId } : {}),
         })
         .select("id")
         .single();
@@ -225,7 +300,7 @@ export default function SquadBuilder() {
     }
 
     await supabase
-      .from("ecc_season_match_squad_players")
+      .from(dataSource.squadPlayersTable)
       .delete()
       .eq("squad_id", squadId);
 
@@ -234,11 +309,12 @@ export default function SquadBuilder() {
       player_id: playerId,
       selection_type: index < 11 ? "playing_11" : "reserve",
       batting_position: index + 1,
+      ...(!isLegacyEcc ? { club_id: resolvedClubId } : {}),
     }));
 
     if (rows.length > 0) {
       const { error } = await supabase
-        .from("ecc_season_match_squad_players")
+        .from(dataSource.squadPlayersTable)
         .insert(rows);
 
       if (error) {
@@ -249,7 +325,7 @@ export default function SquadBuilder() {
     }
 
     const { error: dutyDeleteError } = await supabase
-      .from("ecc_season_match_duties")
+      .from(dataSource.dutiesTable)
       .delete()
       .eq("match_id", matchId);
 
@@ -260,16 +336,27 @@ export default function SquadBuilder() {
     }
 
     const dutyRows = Object.entries(duties)
-      .filter(([_, playerId]) => playerId)
-      .map(([dutyType, playerId]) => ({
-        match_id: matchId,
-        player_id: playerId,
-        duty_type: dutyType,
-      }));
+      .filter(([_, assignee]) => assignee)
+      .map(([dutyType, assignee]) => {
+        if (isLegacyEcc) {
+          return {
+            match_id: matchId,
+            player_id: assignee,
+            duty_type: dutyType,
+          };
+        }
+
+        return {
+          match_id: matchId,
+          duty_type: dutyType,
+          duty_note: assignee,
+          club_id: resolvedClubId,
+        };
+      });
 
     if (dutyRows.length > 0) {
       const { error: dutyInsertError } = await supabase
-        .from("ecc_season_match_duties")
+        .from(dataSource.dutiesTable)
         .insert(dutyRows);
 
       if (dutyInsertError) {
@@ -289,6 +376,10 @@ export default function SquadBuilder() {
     return players.find((p) => p.player_id === playerId)?.full_name || "";
   }
 
+  function getDutyAssigneeName(assignee) {
+    return isLegacyEcc ? getPlayerName(assignee) : assignee;
+  }
+
   function copyWhatsAppMessage() {
     const selected = selectedPlayers
       .map((playerId) => players.find((p) => p.player_id === playerId))
@@ -303,13 +394,13 @@ export default function SquadBuilder() {
 
     const dutyLines = dutyList
       .map((dutyName) => {
-        const playerId = duties[dutyName];
-        if (!playerId) return `${dutyName}: Not assigned`;
-        return `${dutyName}: ${getPlayerName(playerId)}`;
+        const assignee = duties[dutyName];
+        if (!assignee) return `${dutyName}: Not assigned`;
+        return `${dutyName}: ${getDutyAssigneeName(assignee)}`;
       })
       .join("\n");
 
-    const message = `🏏 ECC Squad Announcement
+    const message = `🏏 ${club.shortName} Squad Announcement
 
 ${match.team} vs ${match.opponent}
 📅 ${match.match_date}
@@ -346,7 +437,7 @@ Please be on time.`;
 
   return (
     <div style={{ padding: "20px", maxWidth: "1100px", margin: "auto" }}>
-      <button onClick={() => navigate("/")} style={{ marginBottom: "16px" }}>
+      <button onClick={() => navigate(buildClubPath("/"))} style={{ marginBottom: "16px" }}>
         ← Back
       </button>
 
@@ -401,13 +492,15 @@ Please be on time.`;
         <h2 style={{ margin: "0 0 8px" }}>Match Duties</h2>
 
         <p style={{ margin: "0 0 14px", color: "#555" }}>
-          {match.home_away?.toLowerCase() === "home"
-            ? "Home match duties"
-            : "Away match duties"}{" "}
-          — one player can have multiple duties.
+          {isLegacyEcc
+            ? match.home_away?.toLowerCase() === "home"
+              ? "Home match duties"
+              : "Away match duties"
+            : "Youth match duties"}{" "}
+          — {isLegacyEcc ? "one player can have multiple duties." : "assign duties to volunteers."}
         </p>
 
-        {selectedSquadPlayers.length === 0 ? (
+        {isLegacyEcc && selectedSquadPlayers.length === 0 ? (
           <div
             style={{
               padding: "12px",
@@ -422,36 +515,48 @@ Please be on time.`;
           </div>
         ) : (
           <div style={{ display: "grid", gap: "10px" }}>
-            {dutyList.map((dutyName) => (
-              <div
-                key={dutyName}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "220px 1fr",
-                  gap: "12px",
-                  alignItems: "center",
-                }}
-              >
-                <label style={{ fontWeight: "bold" }}>{dutyName}</label>
+            {dutyList.map((dutyName) => {
+              const dutyOptions = isLegacyEcc
+                ? selectedSquadPlayers.map((p) => ({
+                    value: p.player_id,
+                    label: p.full_name,
+                  }))
+                : HTCECA_VOLUNTEERS.map((name) => ({
+                    value: name,
+                    label: name,
+                  }));
 
-                <select
-                  value={duties[dutyName] || ""}
-                  onChange={(e) => handleDutyChange(dutyName, e.target.value)}
+              return (
+                <div
+                  key={dutyName}
                   style={{
-                    padding: "9px 10px",
-                    borderRadius: "8px",
-                    border: "1px solid #ccc",
+                    display: "grid",
+                    gridTemplateColumns: "220px 1fr",
+                    gap: "12px",
+                    alignItems: "center",
                   }}
                 >
-                  <option value="">Not assigned</option>
-                  {selectedSquadPlayers.map((p) => (
-                    <option key={p.player_id} value={p.player_id}>
-                      {p.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+                  <label style={{ fontWeight: "bold" }}>{dutyName}</label>
+
+                  <select
+                    value={duties[dutyName] || ""}
+                    onChange={(e) => handleDutyChange(dutyName, e.target.value)}
+                    style={{
+                      padding: "9px 10px",
+                      borderRadius: "8px",
+                      border: "1px solid #ccc",
+                    }}
+                  >
+                    <option value="">Not assigned</option>
+                    {dutyOptions.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

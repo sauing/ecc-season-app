@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useClub } from "../hooks/useClub";
 import { supabase } from "../supabaseClient";
 import logo from "../assets/ecc-logo.png";
 
-const LAST_PLAYER_KEY = "ecc_last_selected_player";
+const DEFAULT_LAST_PLAYER_KEY = "ecc_last_selected_player";
 
 function isPastMatch(matchDate) {
   if (!matchDate) return false;
@@ -20,6 +21,9 @@ function isPastMatch(matchDate) {
 export default function MatchAvailability() {
   const { matchId } = useParams();
   const navigate = useNavigate();
+  const { clubSlug, club, buildClubPath, dataSource, isLegacyEcc } = useClub();
+
+  const lastPlayerKey = `${clubSlug}_last_selected_player`;
 
   const [match, setMatch] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -28,7 +32,7 @@ export default function MatchAvailability() {
   const [loading, setLoading] = useState(true);
 
   const [selectedPlayer, setSelectedPlayer] = useState(
-    localStorage.getItem(LAST_PLAYER_KEY) || ""
+    localStorage.getItem(lastPlayerKey) || ""
   );
   const [selectedStatus, setSelectedStatus] = useState("available");
   const [comment, setComment] = useState("");
@@ -43,11 +47,16 @@ export default function MatchAvailability() {
   async function fetchMatchAvailability() {
     setLoading(true);
 
-    const { data: matchData, error: matchError } = await supabase
-      .from("ecc_season_match_dashboard")
+    let matchQuery = supabase
+      .from(dataSource.dashboardView)
       .select("*")
-      .eq("match_id", matchId)
-      .single();
+      .eq("match_id", matchId);
+
+    if (!isLegacyEcc) {
+      matchQuery = matchQuery.eq("club_slug", clubSlug);
+    }
+
+    const { data: matchData, error: matchError } = await matchQuery.single();
 
     if (matchError) {
       console.error("Error loading match:", matchError);
@@ -59,7 +68,7 @@ export default function MatchAvailability() {
     setMatch(matchData);
 
     const { data, error } = await supabase
-      .from("ecc_season_match_availability_view")
+      .from(dataSource.availabilityView)
       .select("*")
       .eq("match_id", matchId)
       .order("player_team", { ascending: true })
@@ -83,7 +92,7 @@ export default function MatchAvailability() {
 
     setPlayers(formatted);
 
-    const savedPlayerId = localStorage.getItem(LAST_PLAYER_KEY);
+    const savedPlayerId = localStorage.getItem(lastPlayerKey);
 
     if (savedPlayerId) {
       const savedPlayer = formatted.find(
@@ -140,21 +149,23 @@ export default function MatchAvailability() {
       match_id: matchId,
       player_id: selectedPlayer,
       status: selectedStatus,
-      comment: comment.trim() || null,
+      ...(isLegacyEcc
+        ? { comment: comment.trim() || null }
+        : { club_id: match.club_id, note: comment.trim() || null }),
     };
 
     let error;
 
     if (existingRow?.id) {
       const response = await supabase
-        .from("ecc_season_match_availability")
+        .from(dataSource.availabilityTable)
         .update(payload)
         .eq("id", existingRow.id);
 
       error = response.error;
     } else {
       const response = await supabase
-        .from("ecc_season_match_availability")
+        .from(dataSource.availabilityTable)
         .insert(payload);
 
       error = response.error;
@@ -168,7 +179,7 @@ export default function MatchAvailability() {
       return;
     }
 
-    localStorage.setItem(LAST_PLAYER_KEY, selectedPlayer);
+    localStorage.setItem(lastPlayerKey, selectedPlayer);
     alert("Availability updated successfully");
     await fetchMatchAvailability();
   }
@@ -177,7 +188,7 @@ export default function MatchAvailability() {
     setSelectedPlayer(playerId);
 
     if (!playerId) {
-      localStorage.removeItem(LAST_PLAYER_KEY);
+      localStorage.removeItem(lastPlayerKey);
       setSelectedStatus("available");
       setComment("");
       return;
@@ -189,7 +200,7 @@ export default function MatchAvailability() {
 
     if (player) {
       setSelectedStatus(player.status || "maybe");
-      setComment(player.comment || "");
+      setComment(player.comment || player.note || "");
     }
   }
 
@@ -216,7 +227,7 @@ export default function MatchAvailability() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <button onClick={() => navigate("/")} style={styles.backButton}>
+        <button onClick={() => navigate(buildClubPath("/"))} style={styles.backButton}>
           ← Back
         </button>
 
@@ -230,7 +241,7 @@ export default function MatchAvailability() {
             <div>
               <div style={styles.headerLeft}>
                 <div style={styles.logoWrap}>
-                  <img src={logo} alt="ECC Logo" style={styles.logo} />
+                  <img src={logo} alt="{club.shortName} Logo" style={styles.logo} />
                 </div>
 
                 <div>

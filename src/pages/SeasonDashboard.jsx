@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import logo from "../assets/ecc-logo.png";
+import { useClub } from "../hooks/useClub";
 
 function formatDateWithDay(matchDate) {
   if (!matchDate) return "TBD";
@@ -34,6 +35,9 @@ function isPastMatch(matchDate) {
 
 export default function SeasonDashboard() {
   const navigate = useNavigate();
+  const { clubSlug, club, buildClubPath, dataSource, isLegacyEcc } = useClub();
+
+  const sessionKey = `season_session_${clubSlug}`;
 
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,25 +45,31 @@ export default function SeasonDashboard() {
   const [teamFilter, setTeamFilter] = useState("all");
 
   useEffect(() => {
-    const savedSession = localStorage.getItem("ecc_season_session");
+    const savedSession = localStorage.getItem(sessionKey);
 
     if (savedSession) {
       try {
         setSession(JSON.parse(savedSession));
       } catch {
-        localStorage.removeItem("ecc_season_session");
+        localStorage.removeItem(sessionKey);
       }
     }
 
     fetchMatches();
-  }, []);
+  }, [sessionKey]);
 
   async function fetchMatches() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("ecc_season_match_dashboard")
-      .select("*")
+    let query = supabase
+      .from(dataSource.dashboardView)
+      .select("*");
+
+    if (!isLegacyEcc) {
+      query = query.eq("club_slug", clubSlug);
+    }
+
+    const { data, error } = await query
       .order("match_date", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -100,7 +110,7 @@ export default function SeasonDashboard() {
   }, [matches, session, teamFilter]);
 
   function logout() {
-    localStorage.removeItem("ecc_season_session");
+    localStorage.removeItem(sessionKey);
     setSession(null);
     setTeamFilter("all");
   }
@@ -108,7 +118,7 @@ export default function SeasonDashboard() {
   if (loading) {
     return (
       <div style={styles.page}>
-        <div style={styles.loadingCard}>Loading ECC season...</div>
+        <div style={styles.loadingCard}>Loading season...</div>
       </div>
     );
   }
@@ -119,18 +129,18 @@ export default function SeasonDashboard() {
         <header style={styles.header}>
           <div style={styles.headerLeft}>
             <div style={styles.logoWrap}>
-              <img src={logo} alt="ECC Logo" style={styles.logo} />
+              {isLegacyEcc ? <img src={logo} alt={`${club.shortName} Logo`} style={styles.logo} /> : <span style={styles.logoText}>{club.shortName}</span>}
             </div>
 
             <div style={styles.headerText}>
-              <p style={styles.kicker}>Eindhoven Cricket Club</p>
-              <h1 style={styles.title}>ECC Season 2026</h1>
+              <p style={styles.kicker}>{club.name}</p>
+              <h1 style={styles.title}>{club.seasonTitle}</h1>
               <p style={styles.subtitle}>
                 {session
                   ? session.role === "super_admin"
                     ? `Super Admin • ${session.personName}`
                     : `${session.team} Admin • ${session.personName}`
-                  : "Public view • Select your team and update availability"}
+                  : `Public view • Select your ${club.shortName} team and update availability`}
               </p>
             </div>
           </div>
@@ -138,27 +148,31 @@ export default function SeasonDashboard() {
           <div style={styles.headerActions}>
             <button
               style={styles.secondaryButton}
-              onClick={() => navigate("/availability/multiple")}
+              onClick={() => navigate(buildClubPath("/availability/multiple"))}
             >
               📝 Update Multiple
             </button>
 
-            <button
-              style={styles.secondaryButton}
-              onClick={() => navigate("/fantasy-points")}
-            >
-              🏆 Fantasy Points
-            </button>
+            {isLegacyEcc && (
+              <>
+                <button
+                  style={styles.secondaryButton}
+                  onClick={() => navigate("/fantasy-points")}
+                >
+                  🏆 Fantasy Points
+                </button>
 
-            <button
-              style={styles.secondaryButton}
-              onClick={() => navigate("/kncb-stats")}
-            >
-              📊 KNCB Stats
-            </button>
+                <button
+                  style={styles.secondaryButton}
+                  onClick={() => navigate("/kncb-stats")}
+                >
+                  📊 KNCB Stats
+                </button>
+              </>
+            )}
 
             {!session ? (
-              <button style={styles.darkButton} onClick={() => navigate("/login")}>
+              <button style={styles.darkButton} onClick={() => navigate(buildClubPath("/login"))}>
                 🔐 Login
               </button>
             ) : (
@@ -254,7 +268,7 @@ export default function SeasonDashboard() {
                       }}
                       disabled={past}
                       onClick={() => {
-                        if (!past) navigate(`/match/${match.match_id}`);
+                        if (!past) navigate(buildClubPath(`/match/${match.match_id}`));
                       }}
                     >
                       {past
@@ -272,7 +286,7 @@ export default function SeasonDashboard() {
                         }}
                         disabled={past}
                         onClick={() => {
-                          if (!past) navigate(`/match/${match.match_id}/squad`);
+                          if (!past) navigate(buildClubPath(`/match/${match.match_id}/squad`));
                         }}
                       >
                         {past ? "Closed" : "Build Squad"}
@@ -379,6 +393,13 @@ const styles = {
     width: "42px",
     height: "42px",
     objectFit: "contain",
+  },
+
+  logoText: {
+    color: "#0f172a",
+    fontWeight: "900",
+    fontSize: "11px",
+    textAlign: "center",
   },
 
   kicker: {

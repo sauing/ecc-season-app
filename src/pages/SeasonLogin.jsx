@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useClub } from "../hooks/useClub";
 import { supabase } from "../supabaseClient";
 
 export default function SeasonLogin() {
   const navigate = useNavigate();
+  const { clubSlug, club, buildClubPath, dataSource, isLegacyEcc } = useClub();
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -11,7 +13,7 @@ export default function SeasonLogin() {
   async function handleLogin(e) {
     e.preventDefault();
 
-    const cleanCode = code.trim();
+    const cleanCode = code.trim().toUpperCase();
 
     if (!cleanCode) {
       alert("Please enter login code");
@@ -20,16 +22,50 @@ export default function SeasonLogin() {
 
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("ecc_season_access_codes")
-      .select("*")
-      .eq("code", cleanCode.toUpperCase())
-      .eq("is_active", true)
-      .single();
+    let data = null;
+    let error = null;
+
+    if (isLegacyEcc) {
+      const response = await supabase
+        .from(dataSource.accessCodesTable)
+        .select("*")
+        .eq("code", cleanCode)
+        .eq("is_active", true)
+        .single();
+
+      data = response.data;
+      error = response.error;
+    } else {
+      const { data: clubData, error: clubError } = await supabase
+        .from("clubs")
+        .select("id, slug")
+        .eq("slug", clubSlug)
+        .eq("is_active", true)
+        .single();
+
+      if (clubError || !clubData) {
+        console.error("Club lookup failed:", clubError);
+        setLoading(false);
+        alert("Club not found or inactive");
+        return;
+      }
+
+      const response = await supabase
+        .from(dataSource.accessCodesTable)
+        .select("*")
+        .eq("club_id", clubData.id)
+        .eq("access_code", cleanCode)
+        .eq("is_active", true)
+        .single();
+
+      data = response.data;
+      error = response.error;
+    }
 
     setLoading(false);
 
     if (error || !data) {
+      console.error("Login failed:", error);
       alert("Invalid or inactive code");
       return;
     }
@@ -41,9 +77,9 @@ export default function SeasonLogin() {
       loginTime: new Date().toISOString(),
     };
 
-    localStorage.setItem("ecc_season_session", JSON.stringify(session));
+    localStorage.setItem(`season_session_${clubSlug}`, JSON.stringify(session));
 
-    navigate("/");
+    navigate(buildClubPath("/"));
   }
 
   return (
@@ -59,11 +95,11 @@ export default function SeasonLogin() {
         }}
       >
         <h1 style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "6px" }}>
-          Captain / Admin Login
+          {club.shortName} Coach / Admin Login
         </h1>
 
         <p style={{ color: "#666", marginBottom: "22px" }}>
-          Enter your ECC team code to manage squads.
+          Enter your login code to manage availability and squads.
         </p>
 
         <form onSubmit={handleLogin}>
@@ -96,9 +132,10 @@ export default function SeasonLogin() {
               border: "none",
               padding: "12px",
               borderRadius: "8px",
-              cursor: "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               fontWeight: "600",
               fontSize: "15px",
+              opacity: loading ? 0.75 : 1,
             }}
           >
             {loading ? "Checking..." : "Login"}
@@ -106,7 +143,7 @@ export default function SeasonLogin() {
         </form>
 
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate(buildClubPath("/"))}
           style={{
             width: "100%",
             marginTop: "12px",

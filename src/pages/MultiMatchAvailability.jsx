@@ -1,54 +1,122 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useClub } from "../hooks/useClub";
 import { supabase } from "../supabaseClient";
 import logo from "../assets/ecc-logo.png";
 
-const LAST_PLAYER_KEY = "ecc_last_selected_player";
+const DEFAULT_LAST_PLAYER_KEY = "ecc_last_selected_player";
 
 export default function MultiMatchAvailability() {
   const navigate = useNavigate();
+  const { clubSlug, club, buildClubPath, dataSource, isLegacyEcc } = useClub();
+
+  const lastPlayerKey = `${clubSlug}_last_selected_player`;
 
   const [players, setPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState(
-    localStorage.getItem(LAST_PLAYER_KEY) || ""
+    localStorage.getItem(lastPlayerKey) || ""
   );
   const [playerSearch, setPlayerSearch] = useState("");
   const [availabilityMap, setAvailabilityMap] = useState({});
   const [availabilityIdMap, setAvailabilityIdMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resolvedClubId, setResolvedClubId] = useState(null);
 
   useEffect(() => {
     fetchInitialData();
   }, []);
 
   useEffect(() => {
-    if (selectedPlayer) {
-      localStorage.setItem(LAST_PLAYER_KEY, selectedPlayer);
-      fetchPlayerAvailability(selectedPlayer);
+    if (!selectedPlayer) return;
+    if (!isLegacyEcc && !resolvedClubId) return;
+
+    localStorage.setItem(lastPlayerKey, selectedPlayer);
+    fetchPlayerAvailability(selectedPlayer);
+  }, [selectedPlayer, resolvedClubId]);
+
+  async function resolveClubId() {
+    if (isLegacyEcc) return null;
+
+    if (resolvedClubId) {
+      return resolvedClubId;
     }
-  }, [selectedPlayer]);
+
+    const { data, error } = await supabase
+      .from("clubs")
+      .select("id")
+      .eq("slug", clubSlug)
+      .eq("is_active", true)
+      .single();
+
+    if (error || !data?.id) {
+      console.error("Could not resolve club id:", error);
+      alert("Could not resolve club");
+      return null;
+    }
+
+    setResolvedClubId(data.id);
+    return data.id;
+  }
 
   async function fetchInitialData() {
     setLoading(true);
 
     const today = new Date().toISOString().split("T")[0];
+    const activeClubId = isLegacyEcc ? null : await resolveClubId();
 
-    const { data: playersData, error: playersError } = await supabase
-      .from("ecc_season_players")
-      .select("*")
-      .order("full_name", { ascending: true });
+    let playersData = [];
+    let playersError = null;
+
+    if (isLegacyEcc) {
+      const response = await supabase
+        .from(dataSource.playersTable)
+        .select("*")
+        .order("full_name", { ascending: true });
+
+      playersData = response.data || [];
+      playersError = response.error;
+    } else {
+      const response = await supabase
+        .from(dataSource.availabilityView)
+        .select("player_id, full_name")
+        .eq("club_slug", clubSlug)
+        .gte("match_date", today)
+        .order("full_name", { ascending: true });
+
+      playersError = response.error;
+
+      const uniquePlayers = new Map();
+      (response.data || []).forEach((row) => {
+        if (row.player_id && row.full_name) {
+          uniquePlayers.set(row.player_id, {
+            id: row.player_id,
+            full_name: row.full_name,
+          });
+        }
+      });
+
+      playersData = [...uniquePlayers.values()].sort((a, b) =>
+        a.full_name.localeCompare(b.full_name)
+      );
+    }
 
     if (playersError) {
       console.error(playersError);
       alert("Could not load players");
     }
 
-    const { data: matchesData, error: matchesError } = await supabase
-      .from("ecc_season_match_dashboard")
+    let matchesQuery = supabase
+      .from(dataSource.dashboardView)
       .select("*")
-      .gte("match_date", today)
+      .gte("match_date", today);
+
+    if (!isLegacyEcc) {
+      matchesQuery = matchesQuery.eq("club_slug", clubSlug);
+    }
+
+    const { data: matchesData, error: matchesError } = await matchesQuery
       .order("match_date", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -57,15 +125,60 @@ export default function MultiMatchAvailability() {
       alert("Could not load matches");
     }
 
+    const normalizedMatches = (matchesData || []).map((match) => ({
+      ...match,
+      ...(!isLegacyEcc ? { club_id: match.club_id || activeClubId } : {}),
+    }));
+
     setPlayers(playersData || []);
-    setMatches(matchesData || []);
+    setMatches(normalizedMatches);
     setLoading(false);
+
+    if (selectedPlayer && (isLegacyEcc || activeClubId)) {
+      await fetchPlayerAvailability(selectedPlayer, activeClubId);
+    }
   }
 
-  async function fetchPlayerAvailability(playerId) {
+  async function fetchPlayerAvailability(playerId, clubIdOverride = null) {
+    if (isLegacyEcc) {
+      const { data, error } = await supabase
+        .from(dataSource.availabilityTable)
+        .select("*")
+        .eq("player_id", playerId);
+
+      if (error) {
+        console.error(error);
+        alert("Could not load saved availability");
+        return;
+      }
+
+      const statusMap = {};
+      const idMap = {};
+
+      (data || []).forEach((row) => {
+        statusMap[row.match_id] = row.status || "maybe";
+        idMap[row.match_id] = row.id;
+      });
+
+      setAvailabilityMap(statusMap);
+      setAvailabilityIdMap(idMap);
+      return;
+    }
+
+    // Generic clubs: read from the same view used by the single match page.
+    // This keeps Multi Availability synced with Match Availability.
+    const clubId = clubIdOverride || resolvedClubId || (await resolveClubId());
+
+    if (!clubId) {
+      setAvailabilityMap({});
+      setAvailabilityIdMap({});
+      return;
+    }
+
     const { data, error } = await supabase
-      .from("ecc_season_match_availability")
-      .select("*")
+      .from(dataSource.availabilityView)
+      .select("match_id, status")
+      .eq("club_slug", clubSlug)
       .eq("player_id", playerId);
 
     if (error) {
@@ -75,15 +188,13 @@ export default function MultiMatchAvailability() {
     }
 
     const statusMap = {};
-    const idMap = {};
 
     (data || []).forEach((row) => {
       statusMap[row.match_id] = row.status || "maybe";
-      idMap[row.match_id] = row.id;
     });
 
     setAvailabilityMap(statusMap);
-    setAvailabilityIdMap(idMap);
+    setAvailabilityIdMap({});
   }
 
   const filteredPlayers = useMemo(() => {
@@ -115,13 +226,46 @@ export default function MultiMatchAvailability() {
 
     setSaving(true);
 
+    const activeClubId = isLegacyEcc ? null : await resolveClubId();
+
+    if (!isLegacyEcc && !activeClubId) {
+      alert("Could not resolve club before saving");
+      setSaving(false);
+      return;
+    }
+
+    if (!isLegacyEcc) {
+      const rows = matches.map((match) => ({
+        club_id: match.club_id || activeClubId,
+        match_id: match.match_id,
+        player_id: selectedPlayer,
+        status: availabilityMap[match.match_id] || "maybe",
+      }));
+
+      const { error } = await supabase
+        .from(dataSource.availabilityTable)
+        .upsert(rows, { onConflict: "match_id,player_id" });
+
+      if (error) {
+        console.error(error);
+        alert(`Availability could not be saved: ${error.message}`);
+        setSaving(false);
+        return;
+      }
+
+      await fetchPlayerAvailability(selectedPlayer, activeClubId);
+      setSaving(false);
+      alert("Availability saved for all upcoming matches!");
+      return;
+    }
+
     for (const match of matches) {
       const status = availabilityMap[match.match_id] || "maybe";
       const existingId = availabilityIdMap[match.match_id];
 
       if (existingId) {
         const { error } = await supabase
-          .from("ecc_season_match_availability")
+          .from(dataSource.availabilityTable)
           .update({
             status,
           })
@@ -135,7 +279,7 @@ export default function MultiMatchAvailability() {
         }
       } else {
         const { error } = await supabase
-          .from("ecc_season_match_availability")
+          .from(dataSource.availabilityTable)
           .insert({
             match_id: match.match_id,
             player_id: selectedPlayer,
@@ -173,18 +317,18 @@ export default function MultiMatchAvailability() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <button onClick={() => navigate("/")} style={styles.backButton}>
+        <button onClick={() => navigate(buildClubPath("/"))} style={styles.backButton}>
           ← Back to Dashboard
         </button>
 
         <header style={styles.header}>
           <div style={styles.headerLeft}>
             <div style={styles.logoWrap}>
-              <img src={logo} alt="ECC Logo" style={styles.logo} />
+              {isLegacyEcc ? <img src={logo} alt={`${club.shortName} Logo`} style={styles.logo} /> : <span style={styles.logoText}>{club.shortName}</span>}
             </div>
 
             <div>
-              <p style={styles.kicker}>Eindhoven Cricket Club</p>
+              <p style={styles.kicker}>{club.name}</p>
               <h1 style={styles.title}>Update Multiple Matches</h1>
               <p style={styles.subtitle}>
                 Select your name once and update all upcoming match availability.
