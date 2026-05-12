@@ -1,4 +1,5 @@
-export const DEFAULT_CLUB_SLUG = "ecc";
+export const DEFAULT_CLUB_SLUG =
+  import.meta.env.VITE_DEFAULT_CLUB_SLUG || "ecc";
 
 export const CLUBS = {
   ecc: {
